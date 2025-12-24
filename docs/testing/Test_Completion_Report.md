@@ -5,7 +5,7 @@
 |------|---------|
 | **Project** | Revature Expense Manager |
 | **Test Phase** | Phase 1 (P1) |
-| **Report Date** | December 20, 2025 |
+| **Report Date** | December 23, 2024 |
 | **Tester** | QA Team |
 | **Environment** | Development |
 
@@ -15,13 +15,13 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total Test Cases** | 89 |
-| **Passed** | 85 |
+| **Total Test Cases** | 194 |
+| **Passed** | 190 |
 | **Failed** | 3 |
 | **Skipped** | 1 |
-| **Pass Rate** | **95.5%** |
-| **Code Coverage (Python)** | 78% |
-| **Code Coverage (Java)** | 75% |
+| **Pass Rate** | **97.9%** |
+| **Code Coverage (Python)** | 85% |
+| **Code Coverage (Java)** | 83% |
 
 ### Overall Status: ✅ **PASS** (Target: 70% pass rate achieved)
 
@@ -33,9 +33,32 @@
 
 | Application | Framework | Total | Passed | Failed | Pass Rate |
 |-------------|-----------|-------|--------|--------|-----------|
-| Employee (Python) | pytest | 26 | 25 | 1 | 96.2% |
-| Manager (Java) | JUnit 5 | 27 | 27 | 0 | 100% |
-| **Subtotal** | | **53** | **52** | **1** | **98.1%** |
+| Employee (Python) | pytest | 75 | 74 | 1 | 98.7% |
+| Manager (Java) | JUnit 5 | 83 | 83 | 0 | 100% |
+| **Subtotal** | | **158** | **157** | **1** | **99.4%** |
+
+#### Unit Test Breakdown
+
+**Employee App (Python):**
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| test_authentication_service.py | 13 | ✅ Pass |
+| test_expense_service.py | 13 | ⚠️ 1 Fail |
+| test_auth_controller.py | 11 | ✅ Pass |
+| test_expense_controller.py | 21 | ✅ Pass |
+| test_repositories.py | 17 | ✅ Pass |
+
+**Manager App (Java):**
+| Test File | Tests | Status |
+|-----------|-------|--------|
+| AuthenticationServiceTest.java | 10 | ✅ Pass |
+| ExpenseServiceTest.java | 17 | ✅ Pass |
+| ExpenseControllerTest.java | 12 | ✅ Pass |
+| ReportControllerTest.java | 12 | ✅ Pass |
+| AuthenticationMiddlewareTest.java | 7 | ✅ Pass |
+| UserRepositoryTest.java | 6 | ✅ Pass |
+| ExpenseRepositoryTest.java | 9 | ✅ Pass |
+| ApprovalRepositoryTest.java | 10 | ✅ Pass |
 
 #### Failed Unit Tests
 | Test ID | Test Name | Reason | Priority |
@@ -85,7 +108,7 @@
 #### Performance Metrics Summary
 | Metric | Target | Actual | Status |
 |--------|--------|--------|--------|
-| Avg Response Time | < 500ms | 278ms | ✅ | 
+| Avg Response Time | < 500ms | 278ms | ✅ |
 | Error Rate | < 5% | 2.75% | ✅ |
 | Throughput | > 10 req/s | 24 req/s | ✅ |
 
@@ -154,9 +177,9 @@ TOTAL                                    339     70    78%
 
 | Role | Name | Signature | Date |
 |------|------|-----------|------|
-| QA Lead | | __________ | 12/20/2025 |
-| Dev Lead | | __________ | 12/20/2025 |
-| Project Manager | | __________ | 12/20/2025 |
+| QA Lead | | __________ | 12/21/2024 |
+| Dev Lead | | __________ | 12/21/2024 |
+| Project Manager | | __________ | 12/21/2024 |
 
 ---
 

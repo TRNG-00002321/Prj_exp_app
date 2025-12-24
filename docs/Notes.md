@@ -7,7 +7,7 @@
 
 ### Python Unit Tests (pytest + pytest-mock)
 
-#### Key Points
+#### Key  Points
 
 1. **Test Structure (AAA Pattern)**
 ```python
@@ -35,7 +35,7 @@ def test_authenticate_valid_user(self):
 
 ### Java Unit Tests (JUnit 5 + Mockito)
 
-#### Key Points
+#### Key  Points
 
 1. **JUnit 5 Annotations**
 ```java
@@ -65,7 +65,7 @@ mvn test -Dtest=AuthenticationServiceTest  # Single class
 
 ### Python API Tests (requests)
 
-#### Key Points
+#### Key  Points
 
 1. **Session Management**
 ```python
@@ -82,7 +82,7 @@ assert response.status_code == 200
 
 ### Java API Tests (REST Assured)
 
-#### Key Points
+#### Key  Points
 
 1. **REST Assured Fluent API**
 ```java
@@ -103,7 +103,7 @@ String token = given()...extract().response().getCookie("jwt");
 
 ### JMeter Performance Testing
 
-#### Key Points
+#### Key  Points
 
 1. **CLI Execution (for CI/CD)**
 ```bash
@@ -123,7 +123,7 @@ jmeter -n -t employee_load_test.jmx -l results.jtl -e -o report
 
 ### Postman Collections
 
-#### Key Points
+#### Key  Points
 - Pre-request scripts for setup
 - Post-test scripts for validation
 - Collection variables for environment
@@ -135,7 +135,7 @@ jmeter -n -t employee_load_test.jmx -l results.jtl -e -o report
 
 ### Python E2E (Behave + Selenium)
 
-#### Key Points
+#### Key  Points
 
 1. **Gherkin Syntax**
 ```gherkin
@@ -165,7 +165,8 @@ behave tests/e2e/features/
 
 ### Java E2E (Cucumber + Selenium)
 
-#### Key Points
+
+#### Key  Points
 
 1. **Cucumber Runner**
 ```java

@@ -321,9 +321,168 @@ def test_submit_expense_e2e(browser):
 |-----------|-----------|-----|-------|
 | `authentication_service.py` | Unit | Business logic, JWT handling | Yes - UserRepository |
 | `expense_service.py` | Unit | Validation rules, CRUD logic | Yes - Both repositories |
+| `auth_controller.py` | Unit | HTTP handling, request/response | Yes - Services |
+| `expense_controller.py` | Unit | CRUD endpoints | Yes - ExpenseService |
+| `user_repository.py` | Unit | Database operations | Yes - DatabaseConnection |
+| `expense_repository.py` | Unit | CRUD operations | Yes - DatabaseConnection |
 | `/api/auth/login` | API | HTTP flow, cookie handling | No - Real server |
 | `/api/expenses` | API | Request validation, auth | No - Real server |
 | Login → Submit → View | E2E | Critical user journey | No - Real everything |
+
+---
+
+## 8. Controller Layer Testing
+
+### When to Test Controllers
+1. **Testing request/response handling** - JSON parsing, status codes
+2. **Testing authentication decorators** - JWT validation
+3. **Testing error handling** - 400, 401, 404 responses
+4. **Testing route logic** - Parameter extraction, query strings
+
+### Controller Test Example
+
+```python
+# tests/unit/test_auth_controller.py
+@allure.story("Login")
+@allure.title("TC-CTRL-AUTH-001: Login with valid credentials")
+@pytest.mark.unit
+def test_login_valid_credentials(self, client, mock_auth_service, sample_employee):
+    """Test successful login returns 200 and sets cookie."""
+    # Arrange - Mock service returns user and token
+    mock_auth_service.authenticate_user.return_value = sample_employee
+    mock_auth_service.generate_token.return_value = 'valid.jwt.token'
+    
+    # Act
+    response = client.post('/api/auth/login', 
+        json={'username': 'employee1', 'password': 'password123'})
+    
+    # Assert
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['message'] == 'Login successful'
+    assert 'jwt_token' in response.headers.get('Set-Cookie', '')
+```
+
+### Testing Authentication Errors
+
+```python
+@allure.title("TC-CTRL-AUTH-002: Login with invalid credentials")
+def test_login_invalid_credentials(self, client, mock_auth_service):
+    """Test invalid credentials returns 401."""
+    # Arrange - Mock service returns None (auth failed)
+    mock_auth_service.authenticate_user.return_value = None
+    
+    # Act
+    response = client.post('/api/auth/login', 
+        json={'username': 'employee1', 'password': 'wrong'})
+    
+    # Assert
+    assert response.status_code == 401
+    data = response.get_json()
+    assert 'Invalid credentials' in data['error']
+```
+
+### Key Concept: Mocking the Authentication Decorator
+
+```python
+# Conftest fixture to bypass auth for unit tests
+@pytest.fixture
+def authenticated_client(flask_app, mock_expense_service, sample_employee):
+    """Create test client with mocked authentication."""
+    with patch('api.auth.get_current_user', return_value=sample_employee):
+        with patch('api.auth.require_employee_auth', lambda f: f):
+            with flask_app.test_client() as client:
+                yield client
+```
+
+---
+
+## 9. Repository Layer Testing
+
+### When to Test Repositories
+1. **Testing SQL query execution** - Correct parameters passed
+2. **Testing result mapping** - Row to object conversion
+3. **Testing error handling** - SQLException handling
+4. **Testing transactions** - Commit/rollback behavior
+
+### Repository Test Example
+
+```python
+# tests/unit/test_repositories.py
+@allure.story("Find User")
+@allure.title("TC-REPO-USER-001: Find user by username - found")
+@pytest.mark.unit
+def test_find_by_username_found(self, user_repository, mock_db_connection):
+    """Test finding existing user by username."""
+    # Arrange - Mock returns row data
+    mock_row = {'id': 1, 'username': 'employee1', 
+                'password': 'password123', 'role': 'Employee'}
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = mock_row
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+    mock_db_connection.get_connection.return_value = mock_conn
+    
+    # Act
+    result = user_repository.find_by_username('employee1')
+    
+    # Assert
+    assert result is not None
+    assert result.id == 1
+    assert result.username == 'employee1'
+```
+
+### Testing CRUD Operations
+
+```python
+@allure.title("TC-REPO-EXP-001: Create expense with approval")
+def test_create_expense(self, expense_repository, mock_db_connection):
+    """Test creating expense creates both expense and approval records."""
+    # Arrange
+    mock_cursor = MagicMock()
+    mock_cursor.lastrowid = 10
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+    mock_db_connection.get_connection.return_value = mock_conn
+    
+    new_expense = Expense(id=None, user_id=1, amount=100.00, 
+                         description='Test expense', date='2024-12-23')
+    
+    # Act
+    result = expense_repository.create(new_expense)
+    
+    # Assert
+    assert result.id == 10
+    # Verify both INSERT statements called (expense + approval)
+    assert mock_conn.execute.call_count == 2
+    mock_conn.commit.assert_called_once()
+```
+
+### Testing Not Found Scenarios
+
+```python
+@allure.title("TC-REPO-USER-002: Find user by username - not found")
+def test_find_by_username_not_found(self, user_repository, mock_db_connection):
+    """Test finding non-existent user returns None."""
+    # Arrange - Cursor returns nothing
+    mock_cursor = MagicMock()
+    mock_cursor.fetchone.return_value = None
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value = mock_cursor
+    mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+    mock_conn.__exit__ = MagicMock(return_value=False)
+    mock_db_connection.get_connection.return_value = mock_conn
+    
+    # Act
+    result = user_repository.find_by_username('unknown')
+    
+    # Assert
+    assert result is None
+```
 
 ---
 
@@ -332,7 +491,10 @@ def test_submit_expense_e2e(browser):
 | Test Type | Use For | Tools | Speed |
 |-----------|---------|-------|-------|
 | **Unit** | Business logic, validation | pytest, mock | ms |
+| **Controller** | HTTP handling, auth | Flask test client | ms |
+| **Repository** | Database operations | mock DB connections | ms |
 | **API** | HTTP contracts, auth | requests | s |
 | **E2E** | User journeys | Behave, Selenium | min |
 
 **Golden Rule:** Write many unit tests, some API tests, few E2E tests.
+

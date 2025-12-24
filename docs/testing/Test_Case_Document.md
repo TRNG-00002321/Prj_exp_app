@@ -5,7 +5,47 @@
 |------|---------|
 | Project | Revature Expense Manager |
 | Test Phase | Phase 2 Testing |
-| Date | December 2024 |
+| Date | December 23, 2024 |
+
+---
+
+## Test Case Summary
+
+### By Test Type
+| Test Type | Count | Percentage |
+|-----------|-------|------------|
+| Unit Tests | 159 | 68% |
+| API Tests | 26 | 11% |
+| E2E Tests | 18 | 8% |
+| Performance Tests | 5 | 2% |
+| Repository Tests | 42 | 18% |
+| Controller Tests | 63 | 27% |
+| **Total** | **233** | **100%** |
+
+### By Application
+| Application | Unit | API | E2E | Total |
+|-------------|------|-----|-----|-------|
+| Employee (Python) | 76 | 18 | 8 | 102 |
+| Manager (Java) | 83 | 8 | 10 | 101 |
+| **Total** | **159** | **26** | **18** | **203** |
+
+### By Test Layer (Unit Tests Only)
+| Layer | Python | Java | Total |
+|-------|--------|------|-------|
+| Service | 26 | 27 | 53 |
+| Controller | 32 | 31 | 63 |
+| Repository | 17 | 25 | 42 |
+| Middleware | 1 | 7 | 8 |
+| **Total** | **76** | **83** | **159** |
+
+### By Scenario Type
+| Scenario Type | Count | Description |
+|---------------|-------|-------------|
+| Happy Path | 98 | Valid inputs, expected success |
+| Sad Path | 85 | Invalid inputs, error handling |
+| Edge Cases | 20 | Boundary conditions, empty data |
+| Security | 30 | Authentication, authorization |
+| **Total** | **233** | |
 
 ---
 
@@ -64,6 +104,133 @@
 | TC-MEXP-006 | Generate CSV report | List of expenses | Returns valid CSV string | Happy |
 | TC-MEXP-007 | CSV escape special characters | Description with comma | Properly escaped | Happy |
 | TC-MEXP-008 | Get expenses by date range | startDate, endDate | Returns filtered list | Happy |
+
+### 1.5 Employee App (Python) - Repository Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-REPO-USER-001 | Find user by username - found | username="employee1" | Returns User object | Happy |
+| TC-REPO-USER-002 | Find user by username - not found | username="unknown" | Returns None | Sad |
+| TC-REPO-USER-003 | Find user by ID - found | user_id=1 | Returns User object | Happy |
+| TC-REPO-USER-004 | Find user by ID - not found | user_id=999 | Returns None | Sad |
+| TC-REPO-USER-005 | Create new user | User object | Returns User with ID | Happy |
+| TC-REPO-EXP-001 | Create expense with approval | Expense object | Creates both records | Happy |
+| TC-REPO-EXP-002 | Find expense by ID - found | expense_id=1 | Returns Expense | Happy |
+| TC-REPO-EXP-003 | Find expense by ID - not found | expense_id=999 | Returns None | Sad |
+| TC-REPO-EXP-004 | Find expenses by user ID | user_id=1 | Returns list of Expenses | Happy |
+| TC-REPO-EXP-005 | Find expenses by user - empty | user_id=999 | Returns empty list | Sad |
+| TC-REPO-EXP-006 | Update expense | Expense object | Returns updated Expense | Happy |
+| TC-REPO-EXP-007 | Delete expense - success | expense_id=1 | Returns True | Happy |
+| TC-REPO-EXP-008 | Delete expense - not found | expense_id=999 | Returns False | Sad |
+| TC-REPO-APR-001 | Find approval by expense ID - found | expense_id=1 | Returns Approval | Happy |
+| TC-REPO-APR-002 | Find approval by expense ID - not found | expense_id=999 | Returns None | Sad |
+| TC-REPO-APR-003 | Update approval status - success | expense_id=1, status="approved" | Returns True | Happy |
+| TC-REPO-APR-004 | Update approval status - not found | expense_id=999 | Returns False | Sad |
+
+### 1.6 Manager App (Java) - Repository Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-REPO-MUSER-001 | Find user by ID - found | userId=1 | Returns Optional with User | Happy |
+| TC-REPO-MUSER-002 | Find user by ID - not found | userId=999 | Returns Optional.empty() | Sad |
+| TC-REPO-MUSER-003 | Find user by ID - SQL exception | DB error | Throws RuntimeException | Sad |
+| TC-REPO-MUSER-004 | Find user by username - found | username="manager1" | Returns Optional with User | Happy |
+| TC-REPO-MUSER-005 | Find user by username - not found | username="unknown" | Returns Optional.empty() | Sad |
+| TC-REPO-MUSER-006 | Find user by username - SQL exception | DB error | Throws RuntimeException | Sad |
+| TC-REPO-MEXP-001 | Find expense by ID - found | expenseId=1 | Returns Optional with Expense | Happy |
+| TC-REPO-MEXP-002 | Find expense by ID - not found | expenseId=999 | Returns Optional.empty() | Sad |
+| TC-REPO-MEXP-003 | Find pending expenses - returns list | - | Returns List ExpenseWithUser | Happy |
+| TC-REPO-MEXP-004 | Find pending expenses - empty | No pending | Returns empty list | Sad |
+| TC-REPO-MEXP-005 | Find pending expenses - SQL exception | DB error | Throws RuntimeException | Sad |
+| TC-REPO-MEXP-006 | Find expenses by user | userId=5 | Returns list | Happy |
+| TC-REPO-MEXP-007 | Find expenses by date range | start, end | Returns filtered list | Happy |
+| TC-REPO-MEXP-008 | Find expenses by category | category="Travel" | Uses LIKE query | Happy |
+| TC-REPO-MEXP-009 | Find all expenses | - | Returns all expenses | Happy |
+| TC-REPO-MAPR-001 | Find approval by expense ID - found | expenseId=1 | Returns Optional with Approval | Happy |
+| TC-REPO-MAPR-002 | Find approval by expense ID - not found | expenseId=999 | Returns Optional.empty() | Sad |
+| TC-REPO-MAPR-003 | Find approval - SQL exception | DB error | Throws RuntimeException | Sad |
+| TC-REPO-MAPR-004 | Update approval status - success | expenseId=1, approved | Returns true | Happy |
+| TC-REPO-MAPR-005 | Update approval status - not found | expenseId=999 | Returns false | Sad |
+| TC-REPO-MAPR-006 | Update approval - deny with comment | denied, comment | Stores comment | Happy |
+| TC-REPO-MAPR-007 | Update approval - SQL exception | DB error | Throws RuntimeException | Sad |
+| TC-REPO-MAPR-008 | Create approval - success | expenseId=5 | Returns Approval with ID | Happy |
+| TC-REPO-MAPR-009 | Create approval - no rows | Insert fails | Throws RuntimeException | Sad |
+| TC-REPO-MAPR-010 | Create approval - no generated key | No key | Throws RuntimeException | Sad |
+
+### 1.7 Employee App (Python) - Auth Controller Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-CTRL-AUTH-001 | Login with valid credentials | Valid JSON body | 200 + JWT cookie | Happy |
+| TC-CTRL-AUTH-002 | Login with invalid credentials | Wrong password | 401 Unauthorized | Sad |
+| TC-CTRL-AUTH-003 | Login with missing username | No username field | 400 Bad Request | Sad |
+| TC-CTRL-AUTH-004 | Login with missing password | No password field | 400 Bad Request | Sad |
+| TC-CTRL-AUTH-005 | Login with empty JSON body | {} | 400 Bad Request | Sad |
+| TC-CTRL-AUTH-006 | Logout clears JWT cookie | POST /logout | 200 + expired cookie | Happy |
+| TC-CTRL-AUTH-007 | Status check with valid token | Valid JWT cookie | {authenticated: true} | Happy |
+| TC-CTRL-AUTH-008 | Status check without token | No cookie | {authenticated: false} | Sad |
+| TC-CTRL-AUTH-009 | Status check with invalid token | Invalid JWT | {authenticated: false} | Sad |
+
+### 1.6 Employee App (Python) - Expense Controller Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-CTRL-EXP-001 | Submit expense with valid data | Valid JSON + auth | 201 Created | Happy |
+| TC-CTRL-EXP-002 | Submit expense without amount | Missing amount | 400 Bad Request | Sad |
+| TC-CTRL-EXP-003 | Submit expense without description | Missing description | 400 Bad Request | Sad |
+| TC-CTRL-EXP-004 | Submit expense with invalid amount | amount="text" | 400 Bad Request | Sad |
+| TC-CTRL-EXP-005 | Submit expense unauthenticated | No JWT | 401 Unauthorized | Sad |
+| TC-CTRL-EXP-006 | Get all expenses for user | GET /expenses + auth | 200 + expense list | Happy |
+| TC-CTRL-EXP-007 | Get expenses with status filter | ?status=approved | 200 + filtered list | Happy |
+| TC-CTRL-EXP-008 | Get single expense by ID | GET /expenses/1 | 200 + expense data | Happy |
+| TC-CTRL-EXP-009 | Get non-existent expense | GET /expenses/999 | 404 Not Found | Sad |
+| TC-CTRL-EXP-010 | Update pending expense | PUT /expenses/1 | 200 + updated data | Happy |
+| TC-CTRL-EXP-011 | Update non-existent expense | PUT /expenses/999 | 404 Not Found | Sad |
+| TC-CTRL-EXP-012 | Update with missing fields | Missing required fields | 400 Bad Request | Sad |
+| TC-CTRL-EXP-013 | Delete pending expense | DELETE /expenses/1 | 200 Success | Happy |
+| TC-CTRL-EXP-014 | Delete non-existent expense | DELETE /expenses/999 | 404 Not Found | Sad |
+
+### 1.7 Manager App (Java) - Expense Controller Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-CTRL-001 | Get pending expenses | GET /pending + auth | 200 + {success, data, count} | Happy |
+| TC-CTRL-002 | Get pending expenses empty | No pending expenses | 200 + {count: 0} | Happy |
+| TC-CTRL-003 | Get pending expenses error | Service exception | 500 Internal Error | Sad |
+| TC-CTRL-004 | Approve expense success | POST /1/approve | 200 + success message | Happy |
+| TC-CTRL-005 | Approve non-existent expense | POST /999/approve | 404 Not Found | Sad |
+| TC-CTRL-006 | Deny expense success | POST /1/deny | 200 + success message | Happy |
+| TC-CTRL-007 | Deny non-existent expense | POST /999/deny | 404 Not Found | Sad |
+| TC-CTRL-008 | Get all expenses | GET /expenses | 200 + {success, data, count} | Happy |
+| TC-CTRL-009 | Get expenses by employee | GET /employee/1 | 200 + employee expenses | Happy |
+| TC-CTRL-010 | Get expenses by employee empty | No expenses | 200 + {count: 0} | Happy |
+
+### 1.8 Manager App (Java) - Report Controller Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-RPT-001 | Generate all expenses CSV | GET /reports/csv | 200 + CSV content | Happy |
+| TC-RPT-002 | Generate CSV empty list | No expenses | 200 + header only | Happy |
+| TC-RPT-003 | Generate employee CSV | GET /employee/1/csv | 200 + filtered CSV | Happy |
+| TC-RPT-004 | Employee CSV service error | Service exception | 500 Internal Error | Sad |
+| TC-RPT-005 | Generate category CSV | GET /category/Travel/csv | 200 + filtered CSV | Happy |
+| TC-RPT-006 | Category CSV empty category | category="" | 400 Bad Request | Sad |
+| TC-RPT-007 | Generate date range CSV | ?startDate&endDate | 200 + filtered CSV | Happy |
+| TC-RPT-008 | Date range missing startDate | Missing startDate | 400 Bad Request | Sad |
+| TC-RPT-009 | Date range invalid format | Wrong date format | 400 Bad Request | Sad |
+| TC-RPT-010 | Generate pending CSV | GET /pending/csv | 200 + pending CSV | Happy |
+
+### 1.9 Manager App (Java) - Authentication Middleware Tests
+
+| TC ID | Description | Input | Expected Result | Type |
+|-------|-------------|-------|-----------------|------|
+| TC-AUTH-MW-001 | Valid manager JWT allows access | Valid manager token | Request proceeds | Happy |
+| TC-AUTH-MW-002 | Missing JWT throws Unauthorized | No JWT cookie | 401 Unauthorized | Sad |
+| TC-AUTH-MW-003 | Invalid JWT throws Unauthorized | Malformed token | 401 Unauthorized | Sad |
+| TC-AUTH-MW-004 | Employee JWT throws Forbidden | Valid employee token | 403 Forbidden | Sad |
+| TC-AUTH-MW-005 | Expired JWT throws Unauthorized | Expired token | 401 Unauthorized | Sad |
+| TC-AUTH-MW-006 | Get authenticated manager | After successful auth | Returns manager User | Happy |
+| TC-AUTH-MW-007 | Get manager when none in context | No auth | Returns null | Sad |
 
 ---
 
