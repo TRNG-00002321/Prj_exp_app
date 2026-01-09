@@ -1,0 +1,34 @@
+# Git
+.git
+.gitignore
+
+# Maven build output
+target/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Testing artifacts
+.allure/
+allure-results/
+tests/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Logs
+logs/
+*.log
+
+# Database (will be mounted as volume)
+*.db
+
+# Misc
+.DS_Store
+Thumbs.db
