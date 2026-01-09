@@ -1,0 +1,359 @@
+// Employee App (Python/Flask) - Jenkins CI/CD Pipeline
+// QA Environment with Comprehensive Testing and Allure Reports
+
+pipeline {
+    agent any
+    
+    environment {
+        // Application image name
+        APP_NAME = 'expense-employee'
+        APP_PORT = '5000'
+        
+        // AWS EC2 deployment target
+        EC2_HOST = credentials('ec2-deploy-host')
+        EC2_USER = 'ec2-user'
+        
+        // Build version
+        BUILD_VERSION = "${BUILD_NUMBER}"
+        
+        // Docker-in-Docker: Host workspace path
+        // When Jenkins runs in a container, Docker daemon needs the HOST path
+        // Set JENKINS_HOME_HOST in Jenkins container env (e.g., /home/ec2-user/jenkins_home)
+        WORKSPACE_HOST = "${env.JENKINS_HOME_HOST ?: env.JENKINS_HOME}/workspace/${env.JOB_NAME}"
+    }
+    
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 45, unit: 'MINUTES')
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                echo '📥 Checking out source code...'
+                checkout scm
+                
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                    echo "Building commit: ${env.GIT_COMMIT_SHORT}"
+                }
+            }
+        }
+        
+        // ============================================
+        // FAIL FAST: Run tests BEFORE building image
+        // ============================================
+        
+        stage('Unit Tests') {
+            steps {
+                echo '🧪 Running Python Unit Tests with Allure...'
+                sh '''
+                    mkdir -p allure-results test-results
+                    
+                    docker run --rm \
+                        -v ${WORKSPACE_HOST}:/app \
+                        -w /app \
+                        python:3.12-slim \
+                        sh -c "pip install -r requirements.txt && \
+                               pytest tests/unit -v \
+                               --alluredir=/app/allure-results \
+                               --junitxml=/app/test-results/unit-results.xml"
+                '''
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'test-results/*.xml'
+                }
+            }
+        }
+        
+        stage('Integration Tests') {
+            steps {
+                echo '🔗 Running Python Integration Tests with Real Database...'
+                sh '''
+                    mkdir -p allure-results test-results
+                    
+                    docker run --rm \
+                        -v ${WORKSPACE_HOST}:/app \
+                        -w /app \
+                        python:3.12-slim \
+                        sh -c "pip install -r requirements.txt && \
+                               pytest tests/integration -v -m integration \
+                               --alluredir=/app/allure-results \
+                               --junitxml=/app/test-results/integration-results.xml"
+                '''
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'test-results/integration-results.xml'
+                }
+            }
+        }
+        
+        // ============================================
+        // BUILD: Only after tests pass
+        // ============================================
+        
+        stage('Build Docker Image') {
+            steps {
+                echo '🐍 Building Python Employee Application...'
+                sh '''
+                    docker build \
+                        -t ${APP_NAME}:${BUILD_VERSION} \
+                        -t ${APP_NAME}:latest \
+                        -f Dockerfile .
+                '''
+            }
+        }
+        
+        stage('Start Application') {
+            steps {
+                echo '🚀 Starting Employee App for API/E2E Testing...'
+                sh '''
+                    # Stop any existing container
+                    docker stop ${APP_NAME}-test || true
+                    docker rm ${APP_NAME}-test || true
+                    
+                    # Start the container
+                    docker run -d \
+                        --name ${APP_NAME}-test \
+                        -p ${APP_PORT}:${APP_PORT} \
+                        -v expense-data:/data \
+                        ${APP_NAME}:${BUILD_VERSION}
+                    
+                    # Wait for app to be healthy
+                    echo "Waiting for application to start..."
+                    sleep 15
+                    curl -f http://localhost:${APP_PORT}/health || exit 1
+                    echo "✅ Application is ready!"
+                '''
+            }
+        }
+        
+        stage('API Tests') {
+            steps {
+                echo '🔌 Running Python API Tests (Unit + Integration)...'
+                sh '''
+                    mkdir -p allure-results test-results
+                    
+                    docker run --rm \
+                        --network host \
+                        -v ${WORKSPACE_HOST}:/app \
+                        -w /app \
+                        -e API_BASE_URL=http://localhost:${APP_PORT} \
+                        -e DATABASE_PATH=/app/tests/integration/test_expense_manager.db \
+                        python:3.12-slim \
+                        sh -c "pip install -r requirements.txt && \
+                               pytest tests/api -v \
+                               --alluredir=/app/allure-results \
+                               --junitxml=/app/test-results/api-results.xml" || true
+                '''
+            }
+        }
+        
+        stage('E2E Tests') {
+            steps {
+                echo '🌐 Running Python E2E Tests (Behave + Integration)...'
+                sh '''
+                    mkdir -p allure-results test-results
+                    
+                    # Run E2E integration tests first
+                    docker run --rm \
+                        --network host \
+                        -v ${WORKSPACE_HOST}:/app \
+                        -w /app \
+                        -e APP_URL=http://localhost:${APP_PORT} \
+                        -e DATABASE_PATH=/app/tests/integration/test_expense_manager.db \
+                        python:3.12-slim \
+                        sh -c "pip install -r requirements.txt && \
+                               pytest tests/e2e/test_e2e_integration_20241229.py -v \
+                               --alluredir=/app/allure-results \
+                               --junitxml=/app/test-results/e2e-integration-results.xml" || true
+                    
+                    # Run Behave tests
+                    docker run --rm \
+                        --network host \
+                        -v ${WORKSPACE_HOST}:/app \
+                        -w /app \
+                        -e APP_URL=http://localhost:${APP_PORT} \
+                        python:3.12-slim \
+                        sh -c "pip install -r requirements.txt && \
+                               behave tests/e2e/features \
+                               -f allure_behave.formatter:AllureFormatter \
+                               -o /app/allure-results" || true
+                '''
+            }
+        }
+        
+        stage('Performance Tests') {
+            steps {
+                echo '⚡ Running JMeter Performance Tests...'
+                sh '''
+                    if [ -d "tests/performance" ]; then
+                        mkdir -p jmeter-results
+                        docker run --rm \
+                            --network host \
+                            -v ${WORKSPACE_HOST}:/workspace \
+                            -w /workspace \
+                            justb4/jmeter:latest \
+                            -n \
+                            -t /workspace/tests/performance/*.jmx \
+                            -l /workspace/jmeter-results/results.jtl \
+                            -e \
+                            -o /workspace/jmeter-results/report || true
+                    else
+                        echo "No JMeter test files found, skipping..."
+                    fi
+                '''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'jmeter-results/**/*', allowEmptyArchive: true
+                }
+            }
+        }
+        
+        stage('Code Coverage') {
+            steps {
+                echo '📈 Generating Code Coverage Report...'
+                sh '''
+                    docker run --rm \
+                        -v ${WORKSPACE_HOST}:/app \
+                        -w /app \
+                        python:3.12-slim \
+                        sh -c "pip install -r requirements.txt && \
+                               coverage run -m pytest tests/unit && \
+                               coverage xml -o coverage.xml && \
+                               coverage html -d htmlcov" || true
+                '''
+            }
+            post {
+                always {
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'htmlcov',
+                        reportFiles: 'index.html',
+                        reportName: 'Python Coverage Report'
+                    ])
+                    
+                    cobertura coberturaReportFile: 'coverage.xml',
+                              conditionalCoverageTargets: '70, 0, 0',
+                              lineCoverageTargets: '80, 0, 0',
+                              failUnhealthy: false,
+                              failUnstable: false,
+                              onlyStable: false
+                }
+            }
+        }
+        
+        stage('Stop Test Container') {
+            steps {
+                echo '🛑 Stopping test container...'
+                sh '''
+                    docker stop ${APP_NAME}-test || true
+                    docker rm ${APP_NAME}-test || true
+                '''
+            }
+        }
+        
+        stage('Generate Allure Report') {
+            steps {
+                echo '📊 Generating Allure Report...'
+            }
+            post {
+                always {
+                    allure([
+                        includeProperties: false,
+                        results: [[path: 'allure-results']]
+                    ])
+                }
+            }
+        }
+        
+        stage('Deploy to QA') {
+            when {
+                allOf {
+                    branch 'main'
+                    expression { currentBuild.currentResult == 'SUCCESS' }
+                }
+            }
+            steps {
+                echo '🚀 All tests passed! Deploying Employee App to QA...'
+                
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ec2-ssh-key',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
+                    sh '''
+                        # Save and transfer Docker image
+                        docker save ${APP_NAME}:${BUILD_VERSION} | gzip > ${APP_NAME}.tar.gz
+                        scp -i ${SSH_KEY} -o StrictHostKeyChecking=no \
+                            ${APP_NAME}.tar.gz ${EC2_USER}@${EC2_HOST}:/home/${EC2_USER}/
+                        
+                        # Deploy on EC2
+                        ssh -i ${SSH_KEY} -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} << 'EOF'
+                            echo "🔨 Loading Docker image..."
+                            gunzip -c ${APP_NAME}.tar.gz | docker load
+                            rm ${APP_NAME}.tar.gz
+                            
+                            echo "🛑 Stopping existing container..."
+                            docker stop expense-employee || true
+                            docker rm expense-employee || true
+                            
+                            echo "🚀 Starting new container..."
+                            docker run -d \
+                                --name expense-employee \
+                                --restart unless-stopped \
+                                -p 5000:5000 \
+                                -v expense-data:/data \
+                                expense-employee:latest
+                            
+                            sleep 15
+                            curl -f http://localhost:5000/health && echo "✅ Employee app deployed!"
+EOF
+                        
+                        rm ${APP_NAME}.tar.gz
+                    '''
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo '🧹 Cleaning up...'
+            sh '''
+                docker stop ${APP_NAME}-test || true
+                docker rm ${APP_NAME}-test || true
+                docker rmi ${APP_NAME}:${BUILD_VERSION} || true
+            '''
+            
+            archiveArtifacts artifacts: '''
+                test-results/**/*.xml,
+                allure-results/**/*,
+                htmlcov/**/*
+            ''', allowEmptyArchive: true
+        }
+        
+        success {
+            echo '''
+            ╔══════════════════════════════════════════════════════════════╗
+            ║  ✅ EMPLOYEE APP PIPELINE COMPLETED SUCCESSFULLY             ║
+            ║                                                              ║
+            ║  📊 Reports: Click "Allure Report" in sidebar                ║
+            ║  📈 Coverage: Click "Python Coverage Report"                 ║
+            ╚══════════════════════════════════════════════════════════════╝
+            '''
+        }
+        
+        failure {
+            echo '❌ Pipeline failed! Check console output for details.'
+        }
+    }
+}
