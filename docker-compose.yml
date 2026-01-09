@@ -1,0 +1,82 @@
+# Revature Expense Manager - Docker Compose Configuration
+# Orchestrates both Employee (Python) and Manager (Java) applications
+
+services:
+  # Python Employee Application
+  employee-app:
+    image: expense-employee:latest
+    build:
+      context: ./employee
+      dockerfile: Dockerfile
+    container_name: expense-employee
+    ports:
+      - "5000:5000"
+    volumes:
+      - expense-data:/data
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_PATH=/data/expense_manager.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - expense-network
+    restart: unless-stopped
+    # Resource limits for production stability
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Java Manager Application
+  manager-app:
+    image: expense-manager:latest
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: expense-manager
+    ports:
+      - "5001:5001"
+    volumes:
+      - expense-data:/data
+    environment:
+      - JAVA_OPTS=-Xms256m -Xmx512m
+      - DATABASE_PATH=/data/expense_manager.db
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - expense-network
+    depends_on:
+      employee-app:
+        condition: service_healthy
+    restart: unless-stopped
+    # Resource limits for production stability
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 768M
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+# Shared volume for SQLite database
+volumes:
+  expense-data:
+    driver: local
+
+# Network for inter-service communication
+networks:
+  expense-network:
+    driver: bridge
